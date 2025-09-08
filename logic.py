@@ -7,7 +7,7 @@ from datetime import date, timedelta
 import pandas as pd
 import openpyxl
 from openpyxl.drawing.image import Image as ExcelImage
-import win32com.client
+#import win32com.client
 import pythoncom
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
@@ -348,16 +348,53 @@ def generate_estimate_files(form_data, parts_df, save_directory):
         pythoncom.CoUninitialize()
 
 def send_estimate_email(recipient_email, rma_number, serial_number, estimate_pdf_path):
+    """
+    Sends the estimate PDF and credit card form using the Resend API.
+    """
     try:
-        # The code that uses pywin32 is now commented out.
-        # This function will now just show a warning and do nothing.
-        st.warning("Email sending is disabled in this deployed version.")
-        return True, None # Return default values so the app doesn't break
+        # Initialize Resend with the API key from Streamlit secrets
+        resend.api_key = st.secrets["resend"]["api_key"]
+
+        # 1. Read the Estimate PDF file
+        with open(estimate_pdf_path, "rb") as f:
+            estimate_pdf_content = f.read()
+
+        # 2. Find and read the Credit Card Form PDF
+        cc_form_path = 'creditform/Credit_card_form.pdf'
+        attachments_list = [
+            {"filename": os.path.basename(estimate_pdf_path), "content": estimate_pdf_content}
+        ]
+        if os.path.exists(cc_form_path):
+            with open(cc_form_path, "rb") as f:
+                cc_form_content = f.read()
+            attachments_list.append(
+                {"filename": os.path.basename(cc_form_path), "content": cc_form_content}
+            )
+
+        # 3. Create the email body
+        email_html_body = f"""
+        <p>Greeting,</p>
+        <p>Please review the estimate form that is attached to this email for S/N: <strong>{serial_number}</strong> and RMA: <strong>{rma_number}</strong>.</p>
+        <p>If approved, please sign and send back the estimate to the following email: serviceorders@iridex.com. If paying by CC, fill out the attached credit card form and email it back. If paying by PO, please provide a hard copy of the PO.</p>
+        <p>Finally, please confirm your shipping address to make sure we ship it to you with no issues. If you have any questions, please let us know.</p>
+        """
+
+        # 4. Send the email using the Resend API
+        params = {
+            "from": "Your App Name <onboarding@resend.dev>", # You can customize the "from" name
+            "to": [recipient_email],
+            "subject": f"Iridex's Estimate Form for S/N: {serial_number}, RMA: {rma_number}",
+            "html": email_html_body,
+            "attachments": attachments_list,
+        }
+
+        email = resend.Emails.send(params)
+        st.success(f"Email sent successfully to {recipient_email}!")
+        return True, cc_form_path
 
     except Exception as e:
-        st.error(f"Email functionality is disabled. Error: {e}")
+        st.error(f"Failed to send email using Resend: {e}")
         return False, None
-
 # =============================================================================
 # SEARCH, REPORTING & ARCHIVING
 # =============================================================================
