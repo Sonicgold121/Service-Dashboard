@@ -346,47 +346,16 @@ def generate_estimate_files(form_data, parts_df, save_directory):
     finally:
         pythoncom.CoUninitialize()
 
-def send_estimate_email(recipient_email, rma_number, serial_number, estimate_pdf_path,):
-    pythoncom.CoInitialize()
+def send_estimate_email(recipient_email, rma_number, serial_number, estimate_pdf_path):
     try:
-        cc_form_template_path = 'creditform/Credit_card_form2.pdf'
-        cc_form_output_path = 'creditform/Credit_card_form.pdf'
-        os.makedirs(os.path.dirname(cc_form_output_path), exist_ok=True)
-        if os.path.exists(cc_form_template_path):
-            doc = fitz.open(cc_form_template_path)
-            page = doc[0]
-            page.insert_text((499.68, 217.44), rma_number, fontsize=12)
-            page.insert_text((156.96, 200.56), recipient_email, fontsize=12)
-            page.insert_text((99.36, 159.24), datetime.datetime.now().strftime("%m/%d/%Y"), fontsize=12)
-            doc.save(cc_form_output_path)
-            doc.close()
-        else:
-            cc_form_output_path = None
+        # The code that uses pywin32 is now commented out.
+        # This function will now just show a warning and do nothing.
+        st.warning("Email sending is disabled in this deployed version.")
+        return True, None # Return default values so the app doesn't break
 
-        outlook = win32com.client.Dispatch("outlook.application")
-        mail = outlook.CreateItem(0)
-        mail.To = recipient_email
-        if os.path.exists('email_list.txt'):
-            with open('email_list.txt', 'r') as file:
-                mail.CC = ";".join(line.strip() for line in file if line.strip())
-        mail.Subject = f"Iridex's Estimate Form for S/N: {serial_number}, RMA{rma_number}"
-        mail.Body = (
-            "Greeting,\n\n"
-            "Please review the estimate form that is attached to this email. If approved, please sign, and send back "
-            "the estimate to the following email, serviceorders@iridex.com . If paying by CC, fill out the attached "
-            "credit card form and email it back. If paying by PO, please provide a hard copy "
-            "of the PO. Finally, please confirm your shipping address to make "
-            "sure we ship it to you with no issues. If any questions, please let us know."
-        )
-        mail.Attachments.Add(os.path.abspath(estimate_pdf_path))
-        if cc_form_output_path: mail.Attachments.Add(os.path.abspath(cc_form_output_path))
-        mail.Send()
-        return True, cc_form_output_path
     except Exception as e:
-        st.error(f"Failed to send email: {e}")
+        st.error(f"Email functionality is disabled. Error: {e}")
         return False, None
-    finally:
-        pythoncom.CoUninitialize()
 
 # =============================================================================
 # SEARCH, REPORTING & ARCHIVING
