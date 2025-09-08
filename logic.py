@@ -52,7 +52,7 @@ def connect_to_google_sheet():
     try:
         scopes = ["https://spreadsheets.google.com/feeds", 'https://www.googleapis.com/auth/spreadsheets',
                   "https://www.googleapis.com/auth/drive.file", "https://www.googleapis.com/auth/drive"]
-        creds = ServiceAccountCredentials.from_json_keyfile_name(CREDS_FILE, scopes)
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scopes)
         return gspread.authorize(creds)
     except Exception as e:
         st.error(f"Failed to connect to Google Sheets: {e}")
