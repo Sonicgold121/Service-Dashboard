@@ -50,9 +50,10 @@ SOURCE_PARTS_ARCHIVE_DIR = "source_parts_archive" # <-- ADDED: New constant for 
 def connect_to_google_sheet():
     '''Connects to Google Sheets using service account credentials.'''
     try:
+        # 'scopes' is defined here
         scopes = ["https://spreadsheets.google.com/feeds", 'https://www.googleapis.com/auth/spreadsheets',
                   "https://www.googleapis.com/auth/drive.file", "https://www.googleapis.com/auth/drive"]
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scopes)
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scopes) # and used here
         return gspread.authorize(creds)
     except Exception as e:
         st.error(f"Failed to connect to Google Sheets: {e}")
