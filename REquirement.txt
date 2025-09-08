@@ -19,7 +19,7 @@ PyMuPDF
 
 # For Windows-specific operations like controlling Outlook
 # NOTE: This library will only work on a Windows operating system.
-pywin32
+# pywin32
 
 # Optional UI component library used in Create Estimate page
 streamlit-shadcn-ui
