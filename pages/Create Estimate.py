@@ -533,17 +533,17 @@ if 'file_paths' in st.session_state:
             )
     st.markdown("---")
     
-    pdf_path = st.session_state['file_paths']['pdf_path']
-    rma_on_form = st.session_state.get('rma', '')
-    serial_on_form = st.session_state.get('serial', '')
+    #pdf_path = st.session_state['file_paths']['pdf_path']
+    #rma_on_form = st.session_state.get('rma', '')
+    #serial_on_form = st.session_state.get('serial', '')
 
-    with open(pdf_path, "rb") as pdf_file:
-        st.download_button(
-            label="Download Estimate PDF",
-            data=pdf_file,
-            file_name=os.path.basename(pdf_path),
-            mime="application/pdf",
-            key="download_estimate_pdf"
+    #with open(pdf_path, "rb") as pdf_file:
+     #   st.download_button(
+      #      label="Download Estimate PDF",
+       #     data=pdf_file,
+        #    file_name=os.path.basename(pdf_path),
+         #   mime="application/pdf",
+          #  key="download_estimate_pdf"
         )
 
     st.write("---")
