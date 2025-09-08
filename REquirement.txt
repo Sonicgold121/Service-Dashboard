@@ -1,0 +1,25 @@
+# Core Streamlit library for the app framework
+streamlit
+
+# For data manipulation and analysis (DataFrames)
+pandas
+
+# For reading and writing Excel .xlsx files (used by pandas)
+openpyxl
+
+# Another engine for writing Excel files (used by pandas)
+xlsxwriter
+
+# For interacting with Google Sheets
+gspread
+oauth2client
+
+# For creating and editing PDF files (used in logic.py)
+PyMuPDF
+
+# For Windows-specific operations like controlling Outlook
+# NOTE: This library will only work on a Windows operating system.
+pywin32
+
+# Optional UI component library used in Create Estimate page
+streamlit-shadcn-ui
