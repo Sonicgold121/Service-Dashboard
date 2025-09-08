@@ -336,17 +336,17 @@ def generate_estimate_files(form_data, parts_df, save_directory):
 
         destination_wb.save(excel_path)
 
-        excel = win32com.client.DispatchEx("Excel.Application")
-        excel.Visible = False
-        workbook = excel.Workbooks.Open(os.path.abspath(excel_path))
-        workbook.ExportAsFixedFormat(0, os.path.abspath(pdf_path))
-        workbook.Close(False)
-        excel.Quit()
+        #excel = win32com.client.DispatchEx("Excel.Application")
+        #excel.Visible = False
+        #workbook = excel.Workbooks.Open(os.path.abspath(excel_path))
+        #workbook.ExportAsFixedFormat(0, os.path.abspath(pdf_path))
+        #workbook.Close(False)
+        #excel.Quit()
         return {'excel_path': excel_path, 'pdf_path': pdf_path}
-    except Exception as e:
-        return None
-    finally:
-        pythoncom.CoUninitialize()
+    #except Exception as e:
+     #   return None
+    #finally:
+      #  pythoncom.CoUninitialize()
 
 def send_estimate_email(recipient_email, rma_number, serial_number, estimate_pdf_path):
     """
