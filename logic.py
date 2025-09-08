@@ -343,8 +343,8 @@ def generate_estimate_files(form_data, parts_df, save_directory):
         #workbook.Close(False)
         #excel.Quit()
         return {'excel_path': excel_path, 'pdf_path': pdf_path}
-    #except Exception as e:
-     #   return None
+    except Exception as e:
+        return None
     #finally:
       #  pythoncom.CoUninitialize()
 
