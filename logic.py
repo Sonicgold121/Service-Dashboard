@@ -296,7 +296,7 @@ def update_reminder_details_in_gsheet(rma, sn, reminder_date, method):
 # FILE GENERATION & EMAIL
 # =============================================================================
 def generate_estimate_files(form_data, parts_df, save_directory):
-    pythoncom.CoInitialize()
+    #pythoncom.CoInitialize()
     try:
         template_path = 'Estimate Form Template.xlsx'
         destination_wb = openpyxl.load_workbook(template_path)
