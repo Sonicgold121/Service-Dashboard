@@ -1,0 +1,10 @@
+# requirements.txt
+
+streamlit
+pandas
+openpyxl
+xlsxwriter
+gspread
+oauth2client
+PyMuPDF
+streamlit-shadcn-ui
