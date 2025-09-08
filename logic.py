@@ -16,6 +16,7 @@ import json
 from io import BytesIO
 import fitz # PyMuPDF for editing the credit card form
 import urllib.parse
+import resend
 
 # =============================================================================
 # CONSTANTS
