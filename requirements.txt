@@ -9,3 +9,4 @@ oauth2client
 PyMuPDF
 streamlit-shadcn-ui
 resend
+fpdf2
