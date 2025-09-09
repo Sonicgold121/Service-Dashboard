@@ -514,25 +514,10 @@ if 'parts_df' in st.session_state:
                 except Exception as e:
                     st.error(f"An unexpected error occurred: {e}")
 
-# --- Step 4: Action Buttons (Appear after successful generation) ---
-#if 'file_paths' in st.session_state:
- #   st.subheader("4. Download or Email")
+  #--- Step 4: Action Buttons (Appear after successful generation) ---
 if 'file_paths' in st.session_state:
-    st.subheader("4. Download Generated Estimate")
+    st.subheader("4. Download or Email")
 
-    excel_path = st.session_state['file_paths']['excel_path']
-
-    if excel_path:
-        st.info("The estimate has been generated as an Excel file. You can now download it.")
-        with open(excel_path, "rb") as excel_file:
-            st.download_button(
-                label="Download Estimate Excel File",
-                data=excel_file,
-                file_name=os.path.basename(excel_path),
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
-    st.markdown("---")
-    
     pdf_path = st.session_state['file_paths']['pdf_path']
     rma_on_form = st.session_state.get('rma', '')
     serial_on_form = st.session_state.get('serial', '')
