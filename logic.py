@@ -17,6 +17,7 @@ from io import BytesIO
 import fitz # PyMuPDF for editing the credit card form
 import urllib.parse
 import resend
+from fpdf import FPDF
 
 # =============================================================================
 # CONSTANTS
@@ -296,57 +297,91 @@ def update_reminder_details_in_gsheet(rma, sn, reminder_date, method):
 # FILE GENERATION & EMAIL
 # =============================================================================
 def generate_estimate_files(form_data, parts_df, save_directory):
-    #pythoncom.CoInitialize()
     try:
-        template_path = 'Estimate Form Template.xlsx'
-        destination_wb = openpyxl.load_workbook(template_path)
-        destination_sheet = destination_wb.active
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Helvetica", size=12)
 
-        image_logo_path = 'images/Iridex logo.png'
-        if os.path.exists(image_logo_path):
-            img_logo = ExcelImage(image_logo_path)
-            img_logo.width, img_logo.height = 250, 50
-            destination_sheet.add_image(img_logo, 'D1')
+        # --- Header ---
+        if os.path.exists('images/Iridex logo.png'):
+            pdf.image('images/Iridex logo.png', x=10, y=8, w=60)
+        pdf.set_font("Helvetica", 'B', size=20)
+        pdf.cell(0, 10, 'Service Estimate', ln=True, align='C')
+        pdf.ln(20)
 
-        image_warranty_path = 'images/warranty.png'
-        if os.path.exists(image_warranty_path):
-            img_warranty = ExcelImage(image_warranty_path)
-            img_warranty.width, img_warranty.height = 440, 22
-            destination_sheet.add_image(img_warranty, 'F6')
+        # --- Customer Info ---
+        pdf.set_font("Helvetica", 'B', size=12)
+        pdf.cell(40, 10, 'RMA No:', border=1)
+        pdf.set_font("Helvetica", size=12)
+        pdf.cell(55, 10, str(form_data.get('rma', '')), border=1)
+        pdf.set_font("Helvetica", 'B', size=12)
+        pdf.cell(40, 10, 'Contact:', border=1)
+        pdf.set_font("Helvetica", size=12)
+        pdf.cell(55, 10, str(form_data.get('contact', '')), border=1, ln=True)
 
-        destination_sheet['F4'].value = form_data.get('rma')
-        destination_sheet['B4'].value = form_data.get('serial')
-        destination_sheet['G4'].value = form_data.get('contact')
-        destination_sheet['A6'].value = form_data.get('cust_name')
-        destination_sheet['C6'].value = form_data.get('cust_num')
-        destination_sheet['A9'].value = form_data.get('description')
-        destination_sheet['A11'].value = form_data.get('evaluation')
+        pdf.set_font("Helvetica", 'B', size=12)
+        pdf.cell(40, 10, 'Serial No:', border=1)
+        pdf.set_font("Helvetica", size=12)
+        pdf.cell(55, 10, str(form_data.get('serial', '')), border=1)
+        pdf.set_font("Helvetica", 'B', size=12)
+        pdf.cell(40, 10, 'Customer Name:', border=1)
+        pdf.set_font("Helvetica", size=12)
+        pdf.cell(55, 10, str(form_data.get('cust_name', '')), border=1, ln=True)
+        pdf.ln(10)
 
-        parts_mapping = { 'No.': 1, 'Quantity': 3, 'Description': 5, 'Amount Including Tax': 9 }
-        start_row = 19
-        for index, part_row in parts_df.iterrows():
-            for source_col, dest_col_index in parts_mapping.items():
-                if source_col in parts_df.columns:
-                    destination_sheet.cell(row=start_row + index, column=dest_col_index).value = part_row[source_col]
+        # --- Problem Description ---
+        pdf.set_font("Helvetica", 'B', size=12)
+        pdf.cell(0, 10, 'Customer Description of Problem:', ln=True)
+        pdf.set_font("Helvetica", size=12)
+        pdf.multi_cell(0, 10, str(form_data.get('description', '')))
+        pdf.ln(5)
+        
+        pdf.set_font("Helvetica", 'B', size=12)
+        pdf.cell(0, 10, 'Technician Product Evaluation:', ln=True)
+        pdf.set_font("Helvetica", size=12)
+        pdf.multi_cell(0, 10, str(form_data.get('evaluation', '')))
+        pdf.ln(10)
 
+        # --- Parts Table ---
+        pdf.set_font("Helvetica", 'B', size=10)
+        col_widths = {'No.': 30, 'Description': 80, 'Quantity': 20, 'Amount Including Tax': 30, 'Line Total': 30}
+        
+        # Table Header
+        for col_name in col_widths:
+            pdf.cell(col_widths[col_name], 10, col_name, border=1, align='C')
+        pdf.ln()
+
+        # Table Rows
+        pdf.set_font("Helvetica", size=9)
+        total_cost = 0
+        for index, row in parts_df.iterrows():
+            line_total = float(row.get('Quantity', 1)) * float(row.get('Amount Including Tax', 0))
+            total_cost += line_total
+            
+            pdf.cell(col_widths['No.'], 10, str(row['No.']), border=1)
+            pdf.cell(col_widths['Description'], 10, str(row['Description']), border=1)
+            pdf.cell(col_widths['Quantity'], 10, str(row['Quantity']), border=1, align='C')
+            pdf.cell(col_widths['Amount Including Tax'], 10, f"${float(row['Amount Including Tax']):.2f}", border=1, align='R')
+            pdf.cell(col_widths['Line Total'], 10, f"${line_total:.2f}", border=1, align='R')
+            pdf.ln()
+
+        # --- Total ---
+        pdf.set_font("Helvetica", 'B', size=12)
+        pdf.cell(sum(col_widths.values()) - col_widths['Line Total'], 10, 'Total Estimated Cost:', border=1, align='R')
+        pdf.cell(col_widths['Line Total'], 10, f"${total_cost:.2f}", border=1, align='R')
+        pdf.ln(15)
+
+        # --- File Saving ---
         sanitized_rma = "".join(c for c in form_data.get('rma', 'file') if c.isalnum() or c in ('_')).rstrip()
         file_name_base = os.path.join(save_directory, f"Estimate_Form_{sanitized_rma}")
-        excel_path = f"{file_name_base}.xlsx"
         pdf_path = f"{file_name_base}.pdf"
-
-        destination_wb.save(excel_path)
-
-        #excel = win32com.client.DispatchEx("Excel.Application")
-        #excel.Visible = False
-        #workbook = excel.Workbooks.Open(os.path.abspath(excel_path))
-        #workbook.ExportAsFixedFormat(0, os.path.abspath(pdf_path))
-        #workbook.Close(False)
-        #excel.Quit()
-        return {'excel_path': excel_path, 'pdf_path': pdf_path}
+        
+        pdf.output(pdf_path)
+        
+        return {'excel_path': None, 'pdf_path': pdf_path}
     except Exception as e:
+        st.error(f"An error occurred while generating the PDF file: {e}")
         return None
-    #finally:
-      #  pythoncom.CoUninitialize()
 
 def send_estimate_email(recipient_email, rma_number, serial_number, estimate_pdf_path):
     """
