@@ -18,6 +18,7 @@ import fitz # PyMuPDF for editing the credit card form
 import urllib.parse
 import resend
 from fpdf import FPDF
+import fitz
 
 # =============================================================================
 # CONSTANTS
@@ -298,89 +299,74 @@ def update_reminder_details_in_gsheet(rma, sn, reminder_date, method):
 # =============================================================================
 def generate_estimate_files(form_data, parts_df, save_directory):
     try:
-        pdf = FPDF()
-        pdf.add_page()
-        pdf.set_font("Helvetica", size=12)
+        template_path = "Estimate Form Template.pdf"
+        if not os.path.exists(template_path):
+            st.error(f"Template file not found at {template_path}. Please create and upload the fillable PDF template.")
+            return None
 
-        # --- Header ---
-        if os.path.exists('images/Iridex logo.png'):
-            pdf.image('images/Iridex logo.png', x=10, y=8, w=60)
-        pdf.set_font("Helvetica", 'B', size=20)
-        pdf.cell(0, 10, 'Service Estimate', ln=True, align='C')
-        pdf.ln(20)
-
-        # --- Customer Info ---
-        pdf.set_font("Helvetica", 'B', size=12)
-        pdf.cell(40, 10, 'RMA No:', border=1)
-        pdf.set_font("Helvetica", size=12)
-        pdf.cell(55, 10, str(form_data.get('rma', '')), border=1)
-        pdf.set_font("Helvetica", 'B', size=12)
-        pdf.cell(40, 10, 'Contact:', border=1)
-        pdf.set_font("Helvetica", size=12)
-        pdf.cell(55, 10, str(form_data.get('contact', '')), border=1, ln=True)
-
-        pdf.set_font("Helvetica", 'B', size=12)
-        pdf.cell(40, 10, 'Serial No:', border=1)
-        pdf.set_font("Helvetica", size=12)
-        pdf.cell(55, 10, str(form_data.get('serial', '')), border=1)
-        pdf.set_font("Helvetica", 'B', size=12)
-        pdf.cell(40, 10, 'Customer Name:', border=1)
-        pdf.set_font("Helvetica", size=12)
-        pdf.cell(55, 10, str(form_data.get('cust_name', '')), border=1, ln=True)
-        pdf.ln(10)
-
-        # --- Problem Description ---
-        pdf.set_font("Helvetica", 'B', size=12)
-        pdf.cell(0, 10, 'Customer Description of Problem:', ln=True)
-        pdf.set_font("Helvetica", size=12)
-        pdf.multi_cell(0, 10, str(form_data.get('description', '')))
-        pdf.ln(5)
-        
-        pdf.set_font("Helvetica", 'B', size=12)
-        pdf.cell(0, 10, 'Technician Product Evaluation:', ln=True)
-        pdf.set_font("Helvetica", size=12)
-        pdf.multi_cell(0, 10, str(form_data.get('evaluation', '')))
-        pdf.ln(10)
-
-        # --- Parts Table ---
-        pdf.set_font("Helvetica", 'B', size=10)
-        col_widths = {'No.': 30, 'Description': 80, 'Quantity': 20, 'Amount Including Tax': 30, 'Line Total': 30}
-        
-        # Table Header
-        for col_name in col_widths:
-            pdf.cell(col_widths[col_name], 10, col_name, border=1, align='C')
-        pdf.ln()
-
-        # Table Rows
-        pdf.set_font("Helvetica", size=9)
-        total_cost = 0
-        for index, row in parts_df.iterrows():
-            line_total = float(row.get('Quantity', 1)) * float(row.get('Amount Including Tax', 0))
-            total_cost += line_total
-            
-            pdf.cell(col_widths['No.'], 10, str(row['No.']), border=1)
-            pdf.cell(col_widths['Description'], 10, str(row['Description']), border=1)
-            pdf.cell(col_widths['Quantity'], 10, str(row['Quantity']), border=1, align='C')
-            pdf.cell(col_widths['Amount Including Tax'], 10, f"${float(row['Amount Including Tax']):.2f}", border=1, align='R')
-            pdf.cell(col_widths['Line Total'], 10, f"${line_total:.2f}", border=1, align='R')
-            pdf.ln()
-
-        # --- Total ---
-        pdf.set_font("Helvetica", 'B', size=12)
-        pdf.cell(sum(col_widths.values()) - col_widths['Line Total'], 10, 'Total Estimated Cost:', border=1, align='R')
-        pdf.cell(col_widths['Line Total'], 10, f"${total_cost:.2f}", border=1, align='R')
-        pdf.ln(15)
-
-        # --- File Saving ---
+        # --- File Saving Path ---
         sanitized_rma = "".join(c for c in form_data.get('rma', 'file') if c.isalnum() or c in ('_')).rstrip()
         file_name_base = os.path.join(save_directory, f"Estimate_Form_{sanitized_rma}")
         pdf_path = f"{file_name_base}.pdf"
+
+        # --- Open the PDF Template ---
+        doc = fitz.open(template_path)
         
-        pdf.output(pdf_path)
+        # --- Fill in the Main Fields ---
+        field_map = {
+            "rma": str(form_data.get('rma', '')),
+            "serial": str(form_data.get('serial', '')),
+            "contact": str(form_data.get('contact', '')),
+            "cust_name": str(form_data.get('cust_name', '')),
+            "description": str(form_data.get('description', '')),
+            "evaluation": str(form_data.get('evaluation', ''))
+        }
         
+        for page in doc:
+            for field_name, field_value in field_map.items():
+                field = page.load_widget_by_name(field_name)
+                if field:
+                    field.field_value = field_value
+                    field.update()
+
+        # --- Fill in the Parts Table (assumes up to 13 rows) ---
+        total_cost = 0
+        for index, row in parts_df.head(13).iterrows(): # .head(13) to prevent errors if more parts
+            line_total = float(row.get('Quantity', 1)) * float(row.get('Amount Including Tax', 0))
+            total_cost += line_total
+            
+            # Find and fill each widget in the row
+            for page in doc:
+                # Part Number
+                no_field = page.load_widget_by_name(f"part_no_{index}")
+                if no_field: no_field.field_value = str(row['No.']); no_field.update()
+                # Description
+                desc_field = page.load_widget_by_name(f"part_desc_{index}")
+                if desc_field: desc_field.field_value = str(row['Description']); desc_field.update()
+                # Quantity
+                qty_field = page.load_widget_by_name(f"part_qty_{index}")
+                if qty_field: qty_field.field_value = str(row['Quantity']); qty_field.update()
+                # Unit Price
+                price_field = page.load_widget_by_name(f"part_price_{index}")
+                if price_field: price_field.field_value = f"${float(row['Amount Including Tax']):.2f}"; price_field.update()
+                # Line Total
+                total_field = page.load_widget_by_name(f"part_total_{index}")
+                if total_field: total_field.field_value = f"${line_total:.2f}"; total_field.update()
+        
+        # --- Fill in the Final Total ---
+        for page in doc:
+            final_total_field = page.load_widget_by_name("final_total")
+            if final_total_field:
+                final_total_field.field_value = f"${total_cost:.2f}"
+                final_total_field.update()
+
+        # Save the filled PDF
+        doc.save(pdf_path, garbage=3, deflate=True, clean=True)
+        doc.close()
+
         return {'excel_path': None, 'pdf_path': pdf_path}
     except Exception as e:
-        st.error(f"An error occurred while generating the PDF file: {e}")
+        st.error(f"An error occurred while filling the PDF template: {e}")
         return None
 
 def send_estimate_email(recipient_email, rma_number, serial_number, estimate_pdf_path):
