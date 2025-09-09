@@ -6,7 +6,7 @@ openpyxl
 xlsxwriter
 gspread
 oauth2client
-PyMuPDF==1.23.26
+PyMuPDF
 streamlit-shadcn-ui
 resend
 fpdf2
