@@ -10,4 +10,3 @@ PyMuPDF
 streamlit-shadcn-ui
 resend
 fpdf2
-fitz
