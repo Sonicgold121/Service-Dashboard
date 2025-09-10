@@ -298,22 +298,18 @@ def update_reminder_details_in_gsheet(rma, sn, reminder_date, method):
 # FILE GENERATION & EMAIL
 # =============================================================================
 def generate_estimate_files(form_data, parts_df, save_directory):
+    """
+    Fills a fillable PDF template with estimate data.
+    Depends on a template named 'estimate_template_fillable.pdf' with correctly named fields.
+    """
     try:
-        template_path = "estimate_form_template.pdf"
+        template_path = "estimate_template_fillable.pdf"
         if not os.path.exists(template_path):
             st.error(f"Template file not found at {template_path}. Please create and upload the fillable PDF template.")
             return None
 
-        # --- File Saving Path ---
-        sanitized_rma = "".join(c for c in form_data.get('rma', 'file') if c.isalnum() or c in ('_')).rstrip()
-        file_name_base = os.path.join(save_directory, f"Estimate_Form_{sanitized_rma}")
-        pdf_path = f"{file_name_base}.pdf"
-
-        # --- Open the PDF Template ---
-        doc = fitz.open(template_path)
-        
-        # --- Data maps for main fields and parts table ---
-        main_field_map = {
+        # --- 1. Prepare all data in a single dictionary ---
+        data_to_fill = {
             "rma": str(form_data.get('rma', '')),
             "serial": str(form_data.get('serial', '')),
             "contact": str(form_data.get('contact', '')),
@@ -321,53 +317,50 @@ def generate_estimate_files(form_data, parts_df, save_directory):
             "description": str(form_data.get('description', '')),
             "evaluation": str(form_data.get('evaluation', ''))
         }
-        
-        total_cost = 0
 
-        # --- Loop through pages and fields to fill them ---
-        for page in doc:
-            # Get all form fields on the page
-            for field in page.widgets():
-                # Fill main fields
-                if field.field_name in main_field_map:
-                    field.field_value = main_field_map[field.field_name]
-                    field.update()
-                
-                # Fill parts table
-                if field.field_name.startswith("part_no_"):
-                    index = int(field.field_name.split("_")[-1])
-                    if index < len(parts_df):
-                        row = parts_df.iloc[index]
-                        line_total = float(row.get('Quantity', 1)) * float(row.get('Amount Including Tax', 0))
-                        total_cost += line_total
-                        
-                        # Set values for this row
-                        field.field_value = str(row['No.'])
-                        # Find and fill other fields in the same row
-                        page.load_widget_by_name(f"part_desc_{index}").field_value = str(row['Description'])
-                        page.load_widget_by_name(f"part_qty_{index}").field_value = str(row['Quantity'])
-                        page.load_widget_by_name(f"part_price_{index}").field_value = f"${float(row['Amount Including Tax']):.2f}"
-                        page.load_widget_by_name(f"part_total_{index}").field_value = f"${line_total:.2f}"
-                        
-                        # Update all fields in the row
-                        field.update()
-                        page.load_widget_by_name(f"part_desc_{index}").update()
-                        page.load_widget_by_name(f"part_qty_{index}").update()
-                        page.load_widget_by_name(f"part_price_{index}").update()
-                        page.load_widget_by_name(f"part_total_{index}").update()
-                
-                # Fill final total
-                if field.field_name == "final_total":
-                    field.field_value = f"${total_cost:.2f}"
-                    field.update()
+        total_cost = 0
+        # Loop through the parts dataframe and add each part to our dictionary
+        for index, row in parts_df.head(13).iterrows(): # .head(13) prevents errors if there are more parts than fields
+            line_total = float(row.get('Quantity', 1)) * float(row.get('Amount Including Tax', 0))
+            total_cost += line_total
+            
+            data_to_fill[f"part_no_{index}"] = str(row.get('No.', ''))
+            data_to_fill[f"part_desc_{index}"] = str(row.get('Description', ''))
+            data_to_fill[f"part_qty_{index}"] = str(row.get('Quantity', ''))
+            data_to_fill[f"part_price_{index}"] = f"${float(row.get('Amount Including Tax', 0)):.2f}"
+            data_to_fill[f"part_total_{index}"] = f"${line_total:.2f}"
         
-        # Save the filled PDF
+        data_to_fill["final_total"] = f"${total_cost:.2f}"
+
+        # --- 2. Open the PDF and fill the fields ---
+        doc = fitz.open(template_path)
+        
+        for page in doc:
+            # Loop through all the widgets (form fields) on the page
+            for widget in page.widgets():
+                # Check if the widget's name is in our data dictionary
+                if widget.field_name in data_to_fill:
+                    # If it is, fill it with the corresponding value
+                    widget.field_value = data_to_fill[widget.field_name]
+                    # Lock the field so it's not editable in the final PDF
+                    widget.field_flags |= 1 
+                    widget.update()
+        
+        # --- 3. Save the completed PDF ---
+        sanitized_rma = "".join(c for c in form_data.get('rma', 'file') if c.isalnum() or c in ('_')).rstrip()
+        file_name_base = os.path.join(save_directory, f"Estimate_Form_{sanitized_rma}")
+        pdf_path = f"{file_name_base}.pdf"
+        
         doc.save(pdf_path, garbage=3, deflate=True, clean=True)
         doc.close()
 
+        # Return the path to the newly created PDF
         return {'excel_path': None, 'pdf_path': pdf_path}
+
     except Exception as e:
         st.error(f"An error occurred while filling the PDF template: {e}")
+        # Add more detail to the error message for debugging
+        st.error(f"Error type: {type(e).__name__}")
         return None
 
 
