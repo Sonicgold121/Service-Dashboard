@@ -299,7 +299,7 @@ def update_reminder_details_in_gsheet(rma, sn, reminder_date, method):
 # =============================================================================
 def generate_estimate_files(form_data, parts_df, save_directory):
     try:
-        template_path = "estimate_template_fillable.pdf"
+        template_path = "estimate_form_template.pdf"
         if not os.path.exists(template_path):
             st.error(f"Template file not found at {template_path}. Please create and upload the fillable PDF template.")
             return None
