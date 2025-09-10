@@ -312,8 +312,8 @@ def generate_estimate_files(form_data, parts_df, save_directory):
         # --- Open the PDF Template ---
         doc = fitz.open(template_path)
         
-        # --- Fill in the Main Fields ---
-        field_map = {
+        # --- Data maps for main fields and parts table ---
+        main_field_map = {
             "rma": str(form_data.get('rma', '')),
             "serial": str(form_data.get('serial', '')),
             "contact": str(form_data.get('contact', '')),
@@ -322,44 +322,45 @@ def generate_estimate_files(form_data, parts_df, save_directory):
             "evaluation": str(form_data.get('evaluation', ''))
         }
         
-        for page in doc:
-            for field_name, field_value in field_map.items():
-                field = page.load_widget_by_name(field_name)
-                if field:
-                    field.field_value = field_value
-                    field.update()
-
-        # --- Fill in the Parts Table (assumes up to 13 rows) ---
         total_cost = 0
-        for index, row in parts_df.head(13).iterrows(): # .head(13) to prevent errors if more parts
-            line_total = float(row.get('Quantity', 1)) * float(row.get('Amount Including Tax', 0))
-            total_cost += line_total
-            
-            # Find and fill each widget in the row
-            for page in doc:
-                # Part Number
-                no_field = page.load_widget_by_name(f"part_no_{index}")
-                if no_field: no_field.field_value = str(row['No.']); no_field.update()
-                # Description
-                desc_field = page.load_widget_by_name(f"part_desc_{index}")
-                if desc_field: desc_field.field_value = str(row['Description']); desc_field.update()
-                # Quantity
-                qty_field = page.load_widget_by_name(f"part_qty_{index}")
-                if qty_field: qty_field.field_value = str(row['Quantity']); qty_field.update()
-                # Unit Price
-                price_field = page.load_widget_by_name(f"part_price_{index}")
-                if price_field: price_field.field_value = f"${float(row['Amount Including Tax']):.2f}"; price_field.update()
-                # Line Total
-                total_field = page.load_widget_by_name(f"part_total_{index}")
-                if total_field: total_field.field_value = f"${line_total:.2f}"; total_field.update()
-        
-        # --- Fill in the Final Total ---
-        for page in doc:
-            final_total_field = page.load_widget_by_name("final_total")
-            if final_total_field:
-                final_total_field.field_value = f"${total_cost:.2f}"
-                final_total_field.update()
 
+        # --- Loop through pages and fields to fill them ---
+        for page in doc:
+            # Get all form fields on the page
+            for field in page.widgets():
+                # Fill main fields
+                if field.field_name in main_field_map:
+                    field.field_value = main_field_map[field.field_name]
+                    field.update()
+                
+                # Fill parts table
+                if field.field_name.startswith("part_no_"):
+                    index = int(field.field_name.split("_")[-1])
+                    if index < len(parts_df):
+                        row = parts_df.iloc[index]
+                        line_total = float(row.get('Quantity', 1)) * float(row.get('Amount Including Tax', 0))
+                        total_cost += line_total
+                        
+                        # Set values for this row
+                        field.field_value = str(row['No.'])
+                        # Find and fill other fields in the same row
+                        page.load_widget_by_name(f"part_desc_{index}").field_value = str(row['Description'])
+                        page.load_widget_by_name(f"part_qty_{index}").field_value = str(row['Quantity'])
+                        page.load_widget_by_name(f"part_price_{index}").field_value = f"${float(row['Amount Including Tax']):.2f}"
+                        page.load_widget_by_name(f"part_total_{index}").field_value = f"${line_total:.2f}"
+                        
+                        # Update all fields in the row
+                        field.update()
+                        page.load_widget_by_name(f"part_desc_{index}").update()
+                        page.load_widget_by_name(f"part_qty_{index}").update()
+                        page.load_widget_by_name(f"part_price_{index}").update()
+                        page.load_widget_by_name(f"part_total_{index}").update()
+                
+                # Fill final total
+                if field.field_name == "final_total":
+                    field.field_value = f"${total_cost:.2f}"
+                    field.update()
+        
         # Save the filled PDF
         doc.save(pdf_path, garbage=3, deflate=True, clean=True)
         doc.close()
@@ -368,6 +369,7 @@ def generate_estimate_files(form_data, parts_df, save_directory):
     except Exception as e:
         st.error(f"An error occurred while filling the PDF template: {e}")
         return None
+
 
 def send_estimate_email(recipient_email, rma_number, serial_number, estimate_pdf_path):
     """
