@@ -18,7 +18,7 @@ import fitz # PyMuPDF for editing the credit card form
 import urllib.parse
 import resend
 from fpdf import FPDF
-import fitz
+#import fitz
 
 # =============================================================================
 # CONSTANTS
