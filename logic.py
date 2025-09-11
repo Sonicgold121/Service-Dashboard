@@ -233,7 +233,7 @@ def update_price_library_and_usage_count(parts_df):
 def _add_or_update_estimate_in_sheet(worksheet, headers, form_data, parts_df):
     rma = form_data.get('rma')
     sn = form_data.get('serial')
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     total_sum = float(parts_df['Line Total'].sum()) if 'Line Total' in parts_df.columns else 0.0
 
     parts_json = parts_df.to_json(orient='records')
@@ -255,7 +255,7 @@ def add_or_update_estimate_in_gsheet(form_data, parts_df):
 def _update_estimate_sent_in_sheet(worksheet, headers, rma, sn, email, sent_date):
     row = find_row_in_gsheet(worksheet, rma, sn, headers)
     if row != -1:
-        ts = datetime.datetime.combine(sent_date, datetime.datetime.now().time()).strftime("%Y-%m-%d %H:%M:%S")
+        ts = datetime.combine(sent_date, datetime.now().time()).strftime("%Y-%m-%d %H:%M:%S")
         updates = [{'range': f'M{row}', 'values': [[email]]}, {'range': f'N{row}', 'values': [[ts]]}]
         worksheet.batch_update(updates)
         return True
