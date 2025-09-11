@@ -314,6 +314,7 @@ def generate_estimate_files(form_data, parts_df, save_directory):
             "serial": str(form_data.get('serial', '')),
             "contact": str(form_data.get('contact', '')),
             "cust_name": str(form_data.get('cust_name', '')),
+            "cust_num": str(form_data.get('cust_num', '')),
             "description": str(form_data.get('description', '')),
             "evaluation": str(form_data.get('evaluation', ''))
         }
