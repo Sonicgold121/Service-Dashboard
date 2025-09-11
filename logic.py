@@ -19,6 +19,7 @@ import urllib.parse
 import resend
 from fpdf import FPDF
 #import fitz
+import base64
 
 # =============================================================================
 # CONSTANTS
@@ -368,26 +369,36 @@ def generate_estimate_files(form_data, parts_df, save_directory):
 def send_estimate_email(recipient_email, rma_number, serial_number, estimate_pdf_path):
     """
     Sends the estimate PDF and credit card form using the Resend API.
+    This version correctly encodes attachments to Base64.
     """
     try:
         # Initialize Resend with the API key from Streamlit secrets
         resend.api_key = st.secrets["resend"]["api_key"]
 
-        # 1. Read the Estimate PDF file
-        with open(estimate_pdf_path, "rb") as f:
-            estimate_pdf_content = f.read()
+        # --- Prepare Attachments with Base64 Encoding ---
+        attachments_list = []
 
-        # 2. Find and read the Credit Card Form PDF
+        # 1. Read and Encode the Estimate PDF
+        with open(estimate_pdf_path, "rb") as f:
+            estimate_pdf_bytes = f.read()
+            estimate_pdf_b64 = base64.b64encode(estimate_pdf_bytes).decode('utf-8')
+        
+        attachments_list.append({
+            "filename": os.path.basename(estimate_pdf_path),
+            "content": estimate_pdf_b64
+        })
+
+        # 2. Find, Read, and Encode the Credit Card Form PDF
         cc_form_path = 'creditform/Credit_card_form.pdf'
-        attachments_list = [
-            {"filename": os.path.basename(estimate_pdf_path), "content": estimate_pdf_content}
-        ]
         if os.path.exists(cc_form_path):
             with open(cc_form_path, "rb") as f:
-                cc_form_content = f.read()
-            attachments_list.append(
-                {"filename": os.path.basename(cc_form_path), "content": cc_form_content}
-            )
+                cc_form_bytes = f.read()
+                cc_form_b64 = base64.b64encode(cc_form_bytes).decode('utf-8')
+            
+            attachments_list.append({
+                "filename": os.path.basename(cc_form_path),
+                "content": cc_form_b64
+            })
 
         # 3. Create the email body
         email_html_body = f"""
@@ -399,7 +410,7 @@ def send_estimate_email(recipient_email, rma_number, serial_number, estimate_pdf
 
         # 4. Send the email using the Resend API
         params = {
-            "from": "Your App Name <onboarding@resend.dev>", # You can customize the "from" name
+            "from": "Service Department <onboarding@resend.dev>", # Replace with your verified domain later
             "to": [recipient_email],
             "subject": f"Iridex's Estimate Form for S/N: {serial_number}, RMA: {rma_number}",
             "html": email_html_body,
@@ -407,7 +418,7 @@ def send_estimate_email(recipient_email, rma_number, serial_number, estimate_pdf
         }
 
         email = resend.Emails.send(params)
-        st.success(f"Email sent successfully to {recipient_email}!")
+        
         return True, cc_form_path
 
     except Exception as e:
