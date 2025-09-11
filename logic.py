@@ -3,7 +3,7 @@
 import os
 import time
 import datetime
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 import pandas as pd
 import openpyxl
 from openpyxl.drawing.image import Image as ExcelImage
@@ -368,14 +368,30 @@ def generate_estimate_files(form_data, parts_df, save_directory):
 
 def send_estimate_email(recipient_email, rma_number, serial_number, estimate_pdf_path):
     """
-    Sends the estimate PDF and credit card form using the Resend API.
-    This version correctly encodes attachments to Base64.
+    Generates a custom credit card form and sends it along with the estimate PDF
+    using the Resend API. Attachments are correctly encoded to Base64.
     """
     try:
-        # Initialize Resend with the API key from Streamlit secrets
-        resend.api_key = st.secrets["resend"]["api_key"]
+        # --- PART 1: GENERATE THE CUSTOM CREDIT CARD PDF (Your original logic) ---
+        cc_form_template_path = 'creditform/Credit_card_form2.pdf'
+        cc_form_output_path = 'creditform/Credit_card_form.pdf'
+        os.makedirs(os.path.dirname(cc_form_output_path), exist_ok=True)
+        
+        if os.path.exists(cc_form_template_path):
+            doc = fitz.open(cc_form_template_path)
+            page = doc[0]
+            # Insert the dynamic text at specific coordinates
+            page.insert_text((499.68, 217.44), rma_number, fontsize=12)
+            page.insert_text((156.96, 200.56), recipient_email, fontsize=12)
+            page.insert_text((99.36, 159.24), datetime.now().strftime("%m/%d/%Y"), fontsize=12)
+            doc.save(cc_form_output_path)
+            doc.close()
+        else:
+            st.warning(f"Credit card form template not found at {cc_form_template_path}")
+            cc_form_output_path = None # Set path to None if template is missing
 
-        # --- Prepare Attachments with Base64 Encoding ---
+        # --- PART 2: PREPARE ATTACHMENTS WITH BASE64 ENCODING ---
+        resend.api_key = st.secrets["resend"]["api_key"]
         attachments_list = []
 
         # 1. Read and Encode the Estimate PDF
@@ -388,19 +404,18 @@ def send_estimate_email(recipient_email, rma_number, serial_number, estimate_pdf
             "content": estimate_pdf_b64
         })
 
-        # 2. Find, Read, and Encode the Credit Card Form PDF
-        cc_form_path = 'creditform/Credit_card_form.pdf'
-        if os.path.exists(cc_form_path):
-            with open(cc_form_path, "rb") as f:
+        # 2. Read and Encode the newly created Credit Card Form PDF
+        if cc_form_output_path and os.path.exists(cc_form_output_path):
+            with open(cc_form_output_path, "rb") as f:
                 cc_form_bytes = f.read()
                 cc_form_b64 = base64.b64encode(cc_form_bytes).decode('utf-8')
             
             attachments_list.append({
-                "filename": os.path.basename(cc_form_path),
+                "filename": os.path.basename(cc_form_output_path),
                 "content": cc_form_b64
             })
 
-        # 3. Create the email body
+        # --- PART 3: SEND THE EMAIL ---
         email_html_body = f"""
         <p>Greeting,</p>
         <p>Please review the estimate form that is attached to this email for S/N: <strong>{serial_number}</strong> and RMA: <strong>{rma_number}</strong>.</p>
@@ -408,7 +423,6 @@ def send_estimate_email(recipient_email, rma_number, serial_number, estimate_pdf
         <p>Finally, please confirm your shipping address to make sure we ship it to you with no issues. If you have any questions, please let us know.</p>
         """
 
-        # 4. Send the email using the Resend API
         params = {
             "from": "Service Department <onboarding@resend.dev>", # Replace with your verified domain later
             "to": [recipient_email],
@@ -419,7 +433,7 @@ def send_estimate_email(recipient_email, rma_number, serial_number, estimate_pdf
 
         email = resend.Emails.send(params)
         
-        return True, cc_form_path
+        return True, cc_form_output_path
 
     except Exception as e:
         st.error(f"Failed to send email using Resend: {e}")
