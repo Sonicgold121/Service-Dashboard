@@ -832,3 +832,53 @@ def load_shipping_prices():
     except Exception as e:
         st.error(f"Error loading Shipping Prices: {e}")
         return pd.DataFrame()
+
+def send_ticket_reply_and_log(sheet, ticket_id, customer_email, original_subject, reply_body, team_member_name):
+    """
+    Sends an email reply to the customer and logs the reply in the Google Sheet.
+    """
+    try:
+        # --- Part 1: Send the email via Resend ---
+        resend.api_key = st.secrets["resend"]["api_key"]
+        
+        full_reply_html = f"""
+        <p>{reply_body.replace('\n', '<br>')}</p>
+        <br>
+        <p>--- Original Message ---</p>
+        <blockquote>{original_subject}</blockquote>
+        """
+
+        params = {
+            "from": f"{team_member_name} <onboarding@resend.dev>", # Use your verified domain later
+            "to": [customer_email],
+            "subject": f"Re: {original_subject}",
+            "html": full_reply_html,
+        }
+        
+        email = resend.Emails.send(params)
+        
+        # --- Part 2: Log the reply to Google Sheets ---
+        # Find the row corresponding to the ticket ID
+        cell = sheet.find(ticket_id)
+        if not cell:
+            return False, f"Could not find ticket {ticket_id} in the sheet to log the reply."
+        
+        row_index = cell.row
+        
+        # Prepare the note to log
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        note = f"--- Reply Sent by {team_member_name} at {timestamp} ---\n{reply_body}\n\n"
+        
+        # Get existing notes and append the new one
+        notes_col_index = sheet.find("Notes").col
+        existing_notes = sheet.cell(row_index, notes_col_index).value or ""
+        updated_notes = note + existing_notes
+        
+        # Update the 'Notes' and 'Status' columns
+        sheet.update_cell(row_index, notes_col_index, updated_notes)
+        sheet.update_cell(row_index, sheet.find("Status").col, "In Progress")
+
+        return True, "Successfully sent reply and updated ticket log."
+
+    except Exception as e:
+        return False, f"An error occurred: {e}"
