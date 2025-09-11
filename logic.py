@@ -3,7 +3,7 @@
 import os
 import time
 import datetime
-from datetime import date, timedelta, datetime
+from datetime import date, timedelta
 import pandas as pd
 import openpyxl
 from openpyxl.drawing.image import Image as ExcelImage
@@ -20,6 +20,7 @@ import resend
 from fpdf import FPDF
 #import fitz
 import base64
+from datetime import datetime
 
 # =============================================================================
 # CONSTANTS
