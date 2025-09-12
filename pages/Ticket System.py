@@ -11,7 +11,6 @@ st.title("🎫 Customer Ticket System")
 # --- Google Sheets Connection (Cached) ---
 @st.cache_resource(ttl=300)
 def connect_and_get_sheet():
-    '''Connects to Google Sheets using service account credentials.'''
     try:
         # 'scopes' is defined here
         scopes = ["https://spreadsheets.google.com/feeds", 'https://www.googleapis.com/auth/spreadsheets',
@@ -20,7 +19,7 @@ def connect_and_get_sheet():
         return gspread.authorize(creds)
     except Exception as e:
         st.error(f"Failed to connect to Google Sheets: {e}")
-        return None
+        return Nonee
 
 @st.cache_data(ttl=60)
 def load_tickets(_sheet):
@@ -88,3 +87,4 @@ if sheet:
                             else:
 
                                 st.error(message)
+
