@@ -17,9 +17,11 @@ def connect_and_get_sheet():
                   "https://www.googleapis.com/auth/drive.file", "https://www.googleapis.com/auth/drive"]
         creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scopes) # and used here
         return gspread.authorize(creds)
-    except Exception as e:
-        st.error(f"Failed to connect to Google Sheets: {e}")
-        return Nonee
+        sheet = client.open("Estimate form").worksheet("Tickets")
+            return sheet
+        except Exception as e:
+            st.error(f"Could not connect to Google Sheets: {e}")
+        return None
 
 @st.cache_data(ttl=60)
 def load_tickets(_sheet):
@@ -87,4 +89,5 @@ if sheet:
                             else:
 
                                 st.error(message)
+
 
