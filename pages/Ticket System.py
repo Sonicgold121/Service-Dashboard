@@ -11,16 +11,15 @@ st.title("🎫 Customer Ticket System")
 # --- Google Sheets Connection (Cached) ---
 @st.cache_resource(ttl=300)
 def connect_and_get_sheet():
+    '''Connects to Google Sheets using service account credentials.'''
     try:
-        scope = ["https://spreadsheets.google.com/feeds", 'https://www.googleapis.com/auth/spreadsheets',
-                 "https://www.googleapis.com/auth/drive.file", "https://www.googleapis.com/auth/drive"]
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
-        client = gspread.authorize(creds)
-        # Assumes your main workbook is named "Estimate form" and the tickets tab is "Tickets"
-        sheet = client.open("Estimate form").worksheet("Tickets")
-        return sheet
+        # 'scopes' is defined here
+        scopes = ["https://spreadsheets.google.com/feeds", 'https://www.googleapis.com/auth/spreadsheets',
+                  "https://www.googleapis.com/auth/drive.file", "https://www.googleapis.com/auth/drive"]
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scopes) # and used here
+        return gspread.authorize(creds)
     except Exception as e:
-        st.error(f"Could not connect to Google Sheets: {e}")
+        st.error(f"Failed to connect to Google Sheets: {e}")
         return None
 
 @st.cache_data(ttl=60)
@@ -87,4 +86,5 @@ if sheet:
                                 # Clear cache to show updated notes
                                 load_tickets.clear()
                             else:
+
                                 st.error(message)
