@@ -875,7 +875,7 @@ def send_ticket_reply_and_log(sheet, ticket_id, customer_email, original_subject
 
         # --- PART 3: NEW - Find RMA and update the sheet ---
         # This pattern looks for "RMA:" followed by spaces and captures the number.
-        rma_match = re.search(r'RMA\s*:\s*([A-Z0-9-]+)', reply_body, re.IGNORECASE)
+        rma_match = re.search(r'(RMA\d+)', reply_body, re.IGNORECASE)
         
         if rma_match:
             rma_number = rma_match.group(1) # Get the captured number
