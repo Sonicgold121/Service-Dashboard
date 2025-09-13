@@ -67,3 +67,7 @@ def send_ticket_reply_and_log(sheet, ticket_id, customer_email, original_subject
 
     except Exception as e:
         return False, f"An error occurred: {e}"
+else:
+    st.error("Failed to connect to the Google Sheet.")
+    st.warning("The page cannot display tickets without a connection to the 'Tickets' worksheet. Please check the troubleshooting steps.")
+
