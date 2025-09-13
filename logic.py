@@ -882,3 +882,26 @@ def send_ticket_reply_and_log(sheet, ticket_id, customer_email, original_subject
 
     except Exception as e:
         return False, f"An error occurred: {e}"
+
+def update_ticket_status(sheet, ticket_id, new_status):
+    """
+    Finds a ticket by its ID in the Google Sheet and updates its status.
+    """
+    try:
+        # Find the row corresponding to the ticket ID
+        cell = sheet.find(ticket_id)
+        if not cell:
+            return False, f"Could not find ticket {ticket_id} in the sheet."
+        
+        row_index = cell.row
+        status_col_index = sheet.find("Status").col
+        
+        # Update the 'Status' column in the found row
+        sheet.update_cell(row_index, status_col_index, new_status)
+        
+        return True, f"Ticket {ticket_id} status updated to {new_status}."
+
+    except Exception as e:
+        return False, f"An error occurred while updating the sheet: {
+
+
