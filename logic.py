@@ -833,13 +833,32 @@ def load_shipping_prices():
         st.error(f"Error loading Shipping Prices: {e}")
         return pd.DataFrame()
 
+def update_ticket_status(sheet, ticket_id, new_status):
+    """
+    Finds a ticket by its ID in the Google Sheet and updates its status.
+    """
+    try:
+        cell = sheet.find(ticket_id)
+        if not cell:
+            return False, f"Could not find ticket {ticket_id} in the sheet."
+        
+        row_index = cell.row
+        status_col_index = sheet.find("Status").col
+        
+        sheet.update_cell(row_index, status_col_index, new_status)
+        
+        return True, f"Ticket {ticket_id} status updated to {new_status}."
+
+    except Exception as e:
+        return False, f"An error occurred while updating the sheet: {e}"
+
+
 def send_ticket_reply_and_log(sheet, ticket_id, customer_email, original_subject, reply_body, team_member_name):
     """
     Sends an email reply, logs it, and searches the reply for an RMA number
     to update the ticket record.
     """
     try:
-        # --- Part 1: Send the email via Resend (No changes here) ---
         resend.api_key = st.secrets["resend"]["api_key"]
         
         full_reply_html = f"""
@@ -856,7 +875,6 @@ def send_ticket_reply_and_log(sheet, ticket_id, customer_email, original_subject
         
         email = resend.Emails.send(params)
         
-        # --- Part 2: Log the reply and find the Ticket Row (No changes here) ---
         cell = sheet.find(ticket_id)
         if not cell:
             return False, f"Could not find ticket {ticket_id} in the sheet to log the reply."
@@ -873,18 +891,14 @@ def send_ticket_reply_and_log(sheet, ticket_id, customer_email, original_subject
         sheet.update_cell(row_index, notes_col_index, updated_notes)
         sheet.update_cell(row_index, sheet.find("Status").col, "In Progress")
 
-        # --- PART 3: NEW - Find RMA and update the sheet ---
-        # This pattern looks for "RMA:" followed by spaces and captures the number.
         rma_match = re.search(r'(RMA\d+)', reply_body, re.IGNORECASE)
         
         if rma_match:
-            rma_number = rma_match.group(1) # Get the captured number
+            rma_number = rma_match.group(1)
             
-            # Find the columns to update
             rma_col_index = sheet.find("RMA").col
             bc_link_col_index = sheet.find("Business Central Link").col
             
-            # Use the constants from your dashboard to create the link
             bc_base_url = "https://businesscentral.dynamics.com/7bcfb5b0-27a1-4e18-99d8-ca66570addd8/Production"
             bc_company = "PROD"
             bc_page_id = "70001"
@@ -892,7 +906,6 @@ def send_ticket_reply_and_log(sheet, ticket_id, customer_email, original_subject
             
             bc_link = f"{bc_base_url}?company={bc_company}&page={bc_page_id}&filter='{urllib.parse.quote_plus(bc_rma_field_name)}'%20IS%20%27{urllib.parse.quote_plus(rma_number)}%27"
             
-            # Update the cells in the Google Sheet
             sheet.update_cell(row_index, rma_col_index, rma_number)
             sheet.update_cell(row_index, bc_link_col_index, bc_link)
 
