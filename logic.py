@@ -855,59 +855,33 @@ def update_ticket_status(sheet, ticket_id, new_status):
 
 def send_ticket_reply_and_log(sheet, ticket_id, customer_email, original_subject, reply_body, team_member_name):
     """
-    Sends an email reply, logs it, and searches the reply for an RMA number
-    to update the ticket record.
+    Sends an email reply, logs it, and saves the RMA if found in the reply.
     """
     try:
+        # (The email sending part remains the same)
         resend.api_key = st.secrets["resend"]["api_key"]
-        
-        full_reply_html = f"""
-        <p>{reply_body.replace('\\n', '<br>')}</p>
-        <br><p>--- Original Message ---</p><blockquote>{original_subject}</blockquote>
-        """
-
-        params = {
-            "from": f"{team_member_name} <onboarding@resend.dev>",
-            "to": [customer_email],
-            "subject": f"Re: {original_subject}",
-            "html": full_reply_html,
-        }
-        
+        full_reply_html = f"<p>{reply_body.replace('\\n', '<br>')}</p><br><p>--- Original Message ---</p><blockquote>{original_subject}</blockquote>"
+        params = { "from": f"{team_member_name} <onboarding@resend.dev>", "to": [customer_email], "subject": f"Re: {original_subject}", "html": full_reply_html }
         email = resend.Emails.send(params)
-        
+
+        # (The logging part remains the same)
         cell = sheet.find(ticket_id)
-        if not cell:
-            return False, f"Could not find ticket {ticket_id} in the sheet to log the reply."
-        
+        if not cell: return False, f"Could not find ticket {ticket_id}..."
         row_index = cell.row
-        
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         note = f"--- Reply Sent by {team_member_name} at {timestamp} ---\\n{reply_body}\\n\\n"
-        
         notes_col_index = sheet.find("Notes").col
         existing_notes = sheet.cell(row_index, notes_col_index).value or ""
-        updated_notes = note + existing_notes
-        
-        sheet.update_cell(row_index, notes_col_index, updated_notes)
+        sheet.update_cell(row_index, notes_col_index, note + existing_notes)
         sheet.update_cell(row_index, sheet.find("Status").col, "In Progress")
 
+        # --- SIMPLIFIED RMA LOGIC ---
         rma_match = re.search(r'(RMA\d+)', reply_body, re.IGNORECASE)
-        
         if rma_match:
             rma_number = rma_match.group(1)
-            
             rma_col_index = sheet.find("RMA").col
-            bc_link_col_index = sheet.find("Business Central Link").col
-            
-            bc_base_url = "https://businesscentral.dynamics.com/7bcfb5b0-27a1-4e18-99d8-ca66570addd8/Production"
-            bc_company = "PROD"
-            bc_page_id = "70001"
-            bc_rma_field_name = "No."
-            
-            bc_link = f"{bc_base_url}?company={bc_company}&page={bc_page_id}&filter='{urllib.parse.quote_plus(bc_rma_field_name)}'%20IS%20%27{urllib.parse.quote_plus(rma_number)}%27"
-            
+            # We only save the RMA number now, not the link.
             sheet.update_cell(row_index, rma_col_index, rma_number)
-            sheet.update_cell(row_index, bc_link_col_index, bc_link)
 
         return True, "Successfully sent reply and updated ticket log."
 
