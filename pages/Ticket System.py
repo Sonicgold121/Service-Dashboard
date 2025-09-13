@@ -5,7 +5,7 @@ import pandas as pd
 from logic import send_ticket_reply_and_log, update_ticket_status
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-from logic import send_ticket_reply_and_log, update_ticket_status # <-- Add update_ticket_status here
+
 
 # --- Page Config ---
 st.set_page_config(page_title="Ticketing System", layout="wide")
@@ -108,4 +108,5 @@ if sheet:
                                 load_tickets.clear()
                             else:
                                 st.error(message)
+
 
