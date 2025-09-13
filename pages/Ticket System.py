@@ -2,11 +2,9 @@
 
 import streamlit as st
 import pandas as pd
-from logic import send_ticket_reply_and_log 
+from logic import send_ticket_reply_and_log, update_ticket_status
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-
-from logic import send_ticket_reply_and_log, update_ticket_status
 
 # --- Page Config ---
 st.set_page_config(page_title="Ticketing System", layout="wide")
@@ -20,7 +18,6 @@ def connect_and_get_sheet():
                  "https://www.googleapis.com/auth/drive.file", "https://www.googleapis.com/auth/drive"]
         creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
         client = gspread.authorize(creds)
-        # Assumes your main workbook is named "Estimate form" and the tickets tab is "Tickets"
         sheet = client.open("Estimate form").worksheet("Tickets")
         return sheet
     except Exception as e:
@@ -50,7 +47,6 @@ if sheet:
         else:
             df_filtered = df_tickets
 
-        # Fixed the deprecation warning here
         st.dataframe(df_filtered, width='stretch')
         st.markdown("---")
 
@@ -68,28 +64,27 @@ if sheet:
             st.write(f"**Subject:** {ticket_data['Subject']}")
             with st.expander("Original Message"):
                 st.write(ticket_data['Body'])
-
+            
             st.markdown("---")
             col1, col2, col3 = st.columns(3)
             with col1:
                 if st.button("Mark as In Progress", use_container_width=True):
-                success, message = update_ticket_status(sheet, ticket_data['Ticket ID'], "In Progress")
-                if success:
-                    st.success(message)
-                    load_tickets.clear() # Refresh the data
-                else:
-                    st.error(message)
+                    success, message = update_ticket_status(sheet, ticket_data['Ticket ID'], "In Progress")
+                    if success:
+                        st.success(message)
+                        load_tickets.clear()
+                    else:
+                        st.error(message)
             with col2:
                 if st.button("Close This Ticket", type="primary", use_container_width=True):
-                success, message = update_ticket_status(sheet, ticket_data['Ticket ID'], "Closed")
-                if success:
-                    st.success(message)
-                    load_tickets.clear() # Refresh the data
-                else:
-                    st.error(message)
+                    success, message = update_ticket_status(sheet, ticket_data['Ticket ID'], "Closed")
+                    if success:
+                        st.success(message)
+                        load_tickets.clear()
+                    else:
+                        st.error(message)
             
-            
-            # --- THIS ENTIRE BLOCK WAS MOVED TO THE CORRECT INDENTATION ---
+            # --- THIS BLOCK'S INDENTATION IS NOW CORRECTED ---
             with st.form(key="reply_form"):
                 reply_text = st.text_area("Your Reply:", height=200)
                 submitted = st.form_submit_button("Send Reply")
@@ -105,12 +100,10 @@ if sheet:
                                 customer_email=ticket_data['Customer Email'],
                                 original_subject=ticket_data['Subject'],
                                 reply_body=reply_text,
-                                team_member_name="Service Team" # Or get from logged-in user later
+                                team_member_name="Service Team"
                             )
                             if success:
                                 st.success(message)
-                                # Clear cache to show updated notes
                                 load_tickets.clear()
                             else:
                                 st.error(message)
-
