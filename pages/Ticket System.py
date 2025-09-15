@@ -72,7 +72,7 @@ if sheet:
         # --- Display the Dataframe ---
         st.dataframe(
             df_filtered,
-            column_order=("Ticket ID", "Status", "RMA", BC_LINK_COL_NAME, "Customer Email", "Subject"),
+            column_order=("Ticket ID", "Status", "RMA","Serial Number", BC_LINK_COL_NAME, "Customer Email", "Subject"),
             column_config={
                 BC_LINK_COL_NAME: st.column_config.LinkColumn(
                     "View in BC",
@@ -149,3 +149,4 @@ if sheet:
 else:
     st.error("Failed to connect to the Google Sheet.")
     st.warning("The page cannot display tickets without a connection to the 'Tickets' worksheet. Please check sharing permissions and sheet name.")
+
