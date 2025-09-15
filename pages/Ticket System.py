@@ -16,7 +16,7 @@ BC_BASE_URL = "https://businesscentral.dynamics.com/7bcfb5b0-27a1-4e18-99d8-ca66
 BC_COMPANY = "PROD"
 BC_PAGE_ID = "70001" 
 BC_RMA_FIELD_NAME = "No."
-BC_LINK_COL_NAME = "Business Central Link" # This will be the name of our new, temporary column
+BC_LINK_COL_NAME = "Business Central Link" 
 
 # --- Google Sheets Connection Functions ---
 @st.cache_resource(ttl=300)
@@ -51,7 +51,6 @@ if sheet:
         st.info("No tickets found.")
     else:
         # --- DYNAMICALLY CREATE THE LINK COLUMN ---
-        # This code runs every time the page loads
         if 'RMA' in df_tickets.columns:
             df_tickets[BC_LINK_COL_NAME] = df_tickets['RMA'].apply(
                 lambda rma: f"{BC_BASE_URL}?company={BC_COMPANY}&page={BC_PAGE_ID}&filter='{urllib.parse.quote_plus(BC_RMA_FIELD_NAME)}'%20IS%20%27{urllib.parse.quote_plus(str(rma))}%27"
@@ -121,6 +120,10 @@ if sheet:
                         st.error(message)
 
             with st.form(key="reply_form"):
+                team_member = st.selectbox(
+                    "Select your name (for email signature and logs)",
+                    options=st.secrets.get("users", {}).get("team_members", ["Default User"])
+                )
                 reply_text = st.text_area("Your Reply:", height=200)
                 submitted = st.form_submit_button("Send Reply")
 
@@ -135,13 +138,14 @@ if sheet:
                                 customer_email=ticket_data['Customer Email'],
                                 original_subject=ticket_data['Subject'],
                                 reply_body=reply_text,
-                                team_member_name="Service Team"
+                                team_member_name=team_member
                             )
                             if success:
                                 st.success(message)
                                 load_tickets.clear()
                             else:
                                 st.error(message)
+# This 'else' block prevents a blank page if the connection fails
 else:
     st.error("Failed to connect to the Google Sheet.")
-    st.warning("The page cannot display tickets without a connection to the 'Tickets' worksheet.")
+    st.warning("The page cannot display tickets without a connection to the 'Tickets' worksheet. Please check sharing permissions and sheet name.")
